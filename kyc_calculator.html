@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KYC Risk-Rating Calculator</title>
+<style>
+  :root{--navy:#1F3A5F;--blue:#2E75B6;--bg:#f4f7fb;--card:#fff;--grey:#667085;
+        --low:#2E7D32;--med:#B8860B;--high:#C0392B;}
+  *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  body{margin:0;background:var(--bg);color:#1a2233;padding:24px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  h1{color:var(--navy);font-size:24px;margin:0 0 2px;}
+  .sub{color:var(--grey);font-size:14px;margin:0 0 18px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .card{background:var(--card);border:1px solid #e3e9f0;border-radius:12px;padding:18px;}
+  label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin:12px 0 5px;}
+  select{width:100%;padding:9px 10px;border:1px solid #cdd7e1;border-radius:8px;font-size:14px;background:#fff;}
+  .res{grid-column:1/-1;}
+  .score{display:flex;align-items:baseline;gap:12px;}
+  .num{font-size:44px;font-weight:800;}
+  .band{font-size:15px;font-weight:700;padding:4px 12px;border-radius:999px;color:#fff;}
+  .bar{height:12px;border-radius:999px;background:#e7edf4;overflow:hidden;margin:12px 0 4px;}
+  .fill{height:100%;width:0;transition:width .3s,background .3s;}
+  ul{margin:8px 0 0;padding-left:18px;} li{font-size:13.5px;margin:3px 0;color:#374151;}
+  .foot{color:var(--grey);font-size:12px;margin-top:16px;line-height:1.5;}
+  .pill{display:inline-block;font-size:11px;color:var(--grey);border:1px solid #d8e0ea;border-radius:999px;padding:2px 8px;margin-left:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>KYC Risk-Rating Calculator <span class="pill">demo · synthetic</span></h1>
+  <p class="sub">Risk-based customer rating for a virtual-asset business. Transparent weighted model — every input shows its contribution. No data is stored.</p>
+  <div class="grid">
+    <div class="card">
+      <label>Customer type</label>
+      <select id="ctype">
+        <option value="0">Individual — retail</option>
+        <option value="10">Individual — high net worth</option>
+        <option value="15">Company — transparent ownership</option>
+        <option value="30">Company — complex / nominee ownership</option>
+      </select>
+      <label>Country / jurisdiction risk</label>
+      <select id="country">
+        <option value="0">Low risk</option>
+        <option value="15">Medium risk</option>
+        <option value="30">High risk (FATF grey/black list)</option>
+      </select>
+      <label>PEP status</label>
+      <select id="pep">
+        <option value="0">Not a PEP</option>
+        <option value="12">PEP — close associate / family</option>
+        <option value="20">PEP — primary</option>
+      </select>
+    </div>
+    <div class="card">
+      <label>Product / service</label>
+      <select id="product">
+        <option value="2">Spot exchange</option>
+        <option value="8">OTC desk</option>
+        <option value="12">Custody / wallet</option>
+        <option value="15">Cross-border payments</option>
+      </select>
+      <label>Onboarding channel</label>
+      <select id="channel">
+        <option value="0">Face-to-face / verified video</option>
+        <option value="8">Non-face-to-face (remote)</option>
+      </select>
+      <label>Source of funds / wealth</label>
+      <select id="sof">
+        <option value="0">Documented &amp; corroborated</option>
+        <option value="10">Declared, partially documented</option>
+        <option value="20">Undocumented / unclear</option>
+      </select>
+      <label>Expected monthly volume</label>
+      <select id="vol">
+        <option value="0">&lt; $10k</option>
+        <option value="6">$10k – $100k</option>
+        <option value="12">$100k – $1M</option>
+        <option value="18">&gt; $1M</option>
+      </select>
+    </div>
+    <div class="card res">
+      <div class="score">
+        <span class="num" id="num">—</span>
+        <span class="band" id="bandlabel" style="background:#999">—</span>
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <strong style="font-size:13px;color:var(--navy)">Top risk drivers</strong>
+      <ul id="drivers"></ul>
+      <div class="foot" id="action"></div>
+      <div class="foot">
+        Demo only — illustrative weights on synthetic logic, not a real KYC policy.
+        Calibrate weights and bands to your own risk appetite and regulator.
+        Prepared by Merey Nurkaliyev — AML Team Lead · linkedin.com/in/merey-nurkaliyev
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const ids = ["ctype","country","pep","product","channel","sof","vol"];
+  const labels = {ctype:"Customer type",country:"Jurisdiction",pep:"PEP status",
+    product:"Product",channel:"Channel",sof:"Source of funds",vol:"Expected volume"};
+  const MAX = 30+30+20+15+8+20+18; // 141 theoretical max
+  function compute(){
+    let total=0; const parts=[];
+    ids.forEach(id=>{
+      const el=document.getElementById(id);
+      const v=parseInt(el.value,10);
+      total+=v;
+      if(v>0) parts.push({label:labels[id], text:el.options[el.selectedIndex].text, v});
+    });
+    const pct=Math.round(100*total/MAX);
+    let band,color,action;
+    if(pct<25){band="LOW";color="var(--low)";action="Standard due diligence. Periodic review.";}
+    else if(pct<55){band="MEDIUM";color="var(--med)";action="Enhanced monitoring. Review source of funds; refresh KYC more frequently.";}
+    else{band="HIGH";color="var(--high)";action="Enhanced Due Diligence required. Senior sign-off before onboarding; ongoing scrutiny and lower transaction thresholds.";}
+    document.getElementById("num").textContent=pct;
+    const bl=document.getElementById("bandlabel"); bl.textContent=band; bl.style.background=color;
+    const fill=document.getElementById("fill"); fill.style.width=pct+"%"; fill.style.background=color;
+    parts.sort((a,b)=>b.v-a.v);
+    document.getElementById("drivers").innerHTML =
+      parts.length? parts.slice(0,4).map(p=>`<li><b>${p.label}:</b> ${p.text} <span style="color:#94a3b8">(+${p.v})</span></li>`).join("")
+      : "<li>No elevated risk factors selected.</li>";
+    document.getElementById("action").innerHTML="<b>Recommended action:</b> "+action;
+  }
+  ids.forEach(id=>document.getElementById(id).addEventListener("change",compute));
+  compute();
+</script>
+</body>
+</html>
